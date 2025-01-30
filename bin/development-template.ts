@@ -3,14 +3,14 @@ import * as dotenv from "dotenv"; // see https://github.com/motdotla/dotenv#how-
 import { randomBytes } from "crypto";
 import "source-map-support/register";
 import * as cdk from "aws-cdk-lib";
-import { DevelopmentTemplateStack } from "../lib/development-template-stack";
+import { InstanceProfileStack } from "../lib/development-template-stack";
 
 dotenv.config();
 const app = new cdk.App();
-new DevelopmentTemplateStack(app, `AppStack`, {
+new InstanceProfileStack(app, `AppStack`, {
   env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: process.env.CDK_DEFAULT_REGION,
+    account: process.env.CDK_ACCOUNT,
+    region: process.env.CDK_REGION,
   },
   tags: {
     app: "tag",
