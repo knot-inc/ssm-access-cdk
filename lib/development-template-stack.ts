@@ -4,6 +4,9 @@ import * as cdk from "aws-cdk-lib";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as logs from "aws-cdk-lib/aws-logs";
+import * as kms from "aws-cdk-lib/aws-kms";
+import * as rds from "aws-cdk-lib/aws-rds";
+import { ISecret, Secret } from "aws-cdk-lib/aws-secretsmanager";
 
 export class InstanceProfileStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -63,5 +66,82 @@ export class InstanceProfileStack extends cdk.Stack {
 
     // Set the instance profile explicitly (optional, if needed for external tools)
     ec2Instance.instance.iamInstanceProfile = instanceProfile.ref;
+
+    // secret key for DB
+    const postgresSecret = new Secret(this, `test-DBCredentialsSecret`, {
+      secretName: `test-db-credentials`,
+      generateSecretString: {
+        secretStringTemplate: JSON.stringify({
+          username: "postgres",
+        }),
+        excludePunctuation: true,
+        includeSpace: false,
+        generateStringKey: "password",
+      },
+    });
+
+    // Connection security group
+    const dbsg = new ec2.SecurityGroup(this, "DatabaseSecurityGroup", {
+      vpc: vpc,
+      description: id + "Database",
+      securityGroupName: id + "Database",
+    });
+
+    dbsg.addIngressRule(
+      ec2.Peer.anyIpv4(),
+      ec2.Port.tcp(5432),
+      "allow Postgres access from Bastion Server",
+    );
+
+    // DB setups
+    const engine = rds.DatabaseInstanceEngine.postgres({
+      version: rds.PostgresEngineVersion.VER_15_7,
+    });
+
+    const instanceType = ec2.InstanceType.of(
+      ec2.InstanceClass.BURSTABLE3,
+      ec2.InstanceSize.MICRO,
+    );
+    const backupRetentionDays = 7;
+    // Retain logs for 10 years in prod, 1 week in dev
+    const cloudwatchLogsRetention = logs.RetentionDays.ONE_DAY;
+    const monitoringInterval = cdk.Duration.seconds(60);
+    const multiAz = false;
+    const dbName = "TestDB";
+
+    const kmsKey = new kms.Key(this, "PgDatabaseKey", {
+      enableKeyRotation: true,
+      alias: dbName,
+    });
+    const rdsInstance = new rds.DatabaseInstance(this, "PgDatabase", {
+      engine,
+      credentials: rds.Credentials.fromSecret(postgresSecret),
+      backupRetention: cdk.Duration.days(backupRetentionDays),
+      storageEncrypted: true,
+      storageEncryptionKey: kmsKey,
+      deletionProtection: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      copyTagsToSnapshot: true,
+      allowMajorVersionUpgrade: true,
+      autoMinorVersionUpgrade: true,
+      monitoringInterval,
+      enablePerformanceInsights: true,
+      performanceInsightRetention: 7,
+      cloudwatchLogsExports: ["postgresql"],
+      cloudwatchLogsRetention,
+      instanceIdentifier: dbName,
+      instanceType,
+      caCertificate: rds.CaCertificate.RDS_CA_RSA4096_G1,
+      multiAz,
+      vpc: vpc,
+      vpcSubnets: {
+        subnetType: ec2.SubnetType.PUBLIC,
+      },
+      securityGroups: [dbsg],
+      // https://hasura.io/blog/aws-aurora-is-it-for-you
+      // Public access: Yes
+      // — We’re going to need the database cluster to be publicly accessible, so that Hasura Cloud is able to reach it.
+      publiclyAccessible: true,
+    });
   }
 }
