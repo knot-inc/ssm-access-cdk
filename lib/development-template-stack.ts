@@ -6,6 +6,8 @@ import * as logs from "aws-cdk-lib/aws-logs";
 import * as kms from "aws-cdk-lib/aws-kms";
 import * as rds from "aws-cdk-lib/aws-rds";
 import { Secret } from "aws-cdk-lib/aws-secretsmanager";
+import * as path from "path";
+import * as fs from "fs";
 
 export class InstanceProfileStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -65,6 +67,13 @@ export class InstanceProfileStack extends cdk.Stack {
 
     // Set the instance profile explicitly (optional, if needed for external tools)
     ec2Instance.instance.iamInstanceProfile = instanceProfile.ref;
+
+    // Inject intial script to setup iptable routing for NAT
+    const initScriptPath = path.join(`${__dirname}/`, "init-script.sh");
+    const userData = fs.readFileSync(initScriptPath, "utf8");
+    ec2Instance.addUserData(userData);
+
+    // ------ DB -------
 
     // secret key for DB
     const postgresSecret = new Secret(this, `test-DBCredentialsSecret`, {
