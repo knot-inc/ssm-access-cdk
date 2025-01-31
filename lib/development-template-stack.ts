@@ -1,12 +1,11 @@
 import { Construct } from "constructs";
-
 import * as cdk from "aws-cdk-lib";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as kms from "aws-cdk-lib/aws-kms";
 import * as rds from "aws-cdk-lib/aws-rds";
-import { ISecret, Secret } from "aws-cdk-lib/aws-secretsmanager";
+import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 
 export class InstanceProfileStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -142,6 +141,17 @@ export class InstanceProfileStack extends cdk.Stack {
       // Public access: Yes
       // — We’re going to need the database cluster to be publicly accessible, so that Hasura Cloud is able to reach it.
       publiclyAccessible: true,
+      iamAuthentication: true, // Enable IAM authentication
     });
+
+    ec2BastionRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["rds-db:connect"],
+        resources: [
+          `arn:aws:rds-db:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:dbuser:${rdsInstance.instanceResourceId}/dbuser`,
+        ],
+      }),
+    );
+    rdsInstance.grantConnect(ec2BastionRole);
   }
 }
