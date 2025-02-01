@@ -4,6 +4,7 @@
 sudo dnf install postgresql15 -y
 
 # Create a script to login psql
+HOME=/home/ssm-user
 cat <<EOF > /home/ssm-user/psql-login.sh
 #!/bin/bash
 RDSHOST="DBNAME!!!.us-west-2.rds.amazonaws.com"
@@ -15,4 +16,5 @@ fi
 psql "host=\$RDSHOST port=5432 dbname=postgres user=dbuser password=\$PGPASSWORD"
 EOF
 
+chown ssm-user /home/ssm-user/psql-login.sh
 chmod +x /home/ssm-user/psql-login.sh
