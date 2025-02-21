@@ -2,8 +2,9 @@ A poc for accessing Bastion server using SSM, then login to Postgre RDS using IA
 
 ![image](https://github.com/user-attachments/assets/d5d1071b-dd04-4cac-ae56-2326b313fba0)
 
+# Demo
 
-https://github.com/user-attachments/assets/6472026c-1fca-4022-a217-92b09569d665
+https://github.com/user-attachments/assets/5a52f4bc-cacd-4d32-bc6f-6ff0237d1943
 
 
 
