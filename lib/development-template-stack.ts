@@ -51,6 +51,13 @@ export class InstanceProfileStack extends cdk.Stack {
     // Create a VPC for the instance
     const vpc = new ec2.Vpc(this, "BastionVpc", {
       maxAzs: 2, // Default: 2 Availability Zones
+      // Do not create a NAT gateway(and ElasticIP automatically)
+      natGatewayProvider: ec2.NatProvider.instanceV2({
+        instanceType: ec2.InstanceType.of(
+          ec2.InstanceClass.T3,
+          ec2.InstanceSize.MICRO,
+        ),
+      }),
     });
 
     // Create an EC2 instance
@@ -68,7 +75,7 @@ export class InstanceProfileStack extends cdk.Stack {
     // Set the instance profile explicitly (optional, if needed for external tools)
     ec2Instance.instance.iamInstanceProfile = instanceProfile.ref;
 
-    // Inject intial script to setup iptable routing for NAT
+    // Inject intial script to setup
     const initScriptPath = path.join(`${__dirname}/`, "init-script.sh");
     const userData = fs.readFileSync(initScriptPath, "utf8");
     ec2Instance.addUserData(userData);
